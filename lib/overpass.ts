@@ -6,6 +6,9 @@ const cafeImages = [
   "/cafes/cafe-4.jpg",
   "/cafes/cafe-5.jpg",
   "/cafes/cafe-6.jpg",
+  "/cafes/cafe-7.jpg",
+  "/cafes/cafe-8.jpg",
+  "/cafes/cafe-9.jpg",
 ];
 
 const cafeCache = new Map<string, any[]>();
@@ -27,10 +30,10 @@ export async function fetchNearbyCafes(
   userLon: number,
   radius = 10000
 ) {
-  
-  if (userLat == null || userLon == null) return [];
+  const lat = userLat ?? 28.6139;
+  const lon = userLon ?? 77.2090;
 
-  const cacheKey = `${userLat.toFixed(2)}_${userLon.toFixed(2)}_${radius}`;
+  const cacheKey = `${lat.toFixed(2)}_${lon.toFixed(2)}_${radius}`;
 
   if (cafeCache.has(cacheKey)) {
     return cafeCache.get(cacheKey)!;
@@ -39,9 +42,9 @@ export async function fetchNearbyCafes(
   const query = `
 [out:json][timeout:25];
 (
-  node["amenity"="cafe"](around:${radius},${userLat},${userLon});
-  way["amenity"="cafe"](around:${radius},${userLat},${userLon});
-  relation["amenity"="cafe"](around:${radius},${userLat},${userLon});
+  node["amenity"="cafe"](around:${radius},${lat},${lon});
+  way["amenity"="cafe"](around:${radius},${lat},${lon});
+  relation["amenity"="cafe"](around:${radius},${lat},${lon});
 );
 out center;
 `;
@@ -56,10 +59,9 @@ out center;
   const timeout = setTimeout(() => controller.abort(), 10000);
 
   let data: any = null;
+  let response: Response | null = null;
 
   try {
-    let response: Response | null = null;
-
     for (const server of OVERPASS_SERVERS) {
       response = await safeFetch(server, {
         method: "POST",
@@ -75,38 +77,41 @@ out center;
 
     clearTimeout(timeout);
 
-    if (!response) throw new Error("Overpass failed");
+    if (!response) {
+      throw new Error("All Overpass servers failed");
+    }
 
     data = await response.json();
   } catch (err) {
     clearTimeout(timeout);
-    console.warn("Overpass failed → returning empty list");
+    console.warn("Overpass failed → using cache fallback");
+
+    const cached = cafeCache.get(cacheKey);
+
+    if (cached && cached.length > 0) {
+      return cached;
+    }
+
     return [];
   }
 
   const elements = data?.elements || [];
 
   const cafes = elements
-    .map((el: any) => {
+    .map((el: any, index: number) => {
       const lat = el.lat || el.center?.lat;
       const lon = el.lon || el.center?.lon;
 
       if (lat == null || lon == null) return null;
 
-      const distance = getDistanceKm(
-        userLat,
-        userLon,
-        lat,
-        lon
-      );
+      const distance = getDistanceKm(userLat, userLon, lat, lon);
 
       return {
         id: el.id,
         name: el.tags?.name || "Unnamed Cafe",
         lat,
         lon,
-
-        distance, 
+        distance,
 
         address:
           [
@@ -121,7 +126,8 @@ out center;
           el.tags?.wifi === "yes" ||
           el.tags?.internet_access === "yes",
 
-        image: cafeImages[Math.abs(el.id) % cafeImages.length],
+        
+        image: cafeImages[index % cafeImages.length],
       };
     })
     .filter(Boolean)
