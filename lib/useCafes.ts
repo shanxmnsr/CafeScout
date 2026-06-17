@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { fetchNearbyCafes } from "@/lib/overpass";
 import { Cafe } from "@/types/cafe";
 
 interface UseCafesParams {
@@ -28,21 +27,34 @@ export function useCafes({ lat, lon, radius = 10000 }: UseCafesParams) {
       setError(null);
 
       try {
-        // ✅ FIX: always fallback to safe coordinates
-        const safeLat = lat ?? 28.6139; // Delhi fallback
+        const safeLat = lat ?? 28.6139;
         const safeLon = lon ?? 77.2090;
 
-        const data = await fetchNearbyCafes(safeLat, safeLon, radius);
+        const query = `
+          [out:json];
+          node["amenity"="cafe"](around:${radius},${safeLat},${safeLon});
+          out;
+        `;
 
-        // ignore stale requests
+        const res = await fetch("/api/overpass", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ query }),
+        });
+
+        const data = await res.json();
+
         if (currentRequest !== requestId.current) return;
 
-        if (data?.length > 0) {
-          lastGoodCafes = data;
-          setCafes(data);
+        const cafes = data?.elements || [];
+
+        if (cafes.length > 0) {
+          lastGoodCafes = cafes;
+          setCafes(cafes);
         } else {
           setCafes(lastGoodCafes);
-
           setError(
             lastGoodCafes.length > 0
               ? "Live data unavailable — showing cached cafes."
@@ -50,10 +62,9 @@ export function useCafes({ lat, lon, radius = 10000 }: UseCafesParams) {
           );
         }
       } catch (err) {
-        console.error("Cafe fetch error:", err);
+        console.error(err);
 
         setCafes(lastGoodCafes);
-
         setError(
           lastGoodCafes.length > 0
             ? "Network issue — showing cached cafes."
