@@ -68,7 +68,7 @@ out center;
         headers: {
           "Content-Type": "text/plain",
         },
-        body: query,
+        body: new URLSearchParams({ data: query }),
         signal: controller.signal,
       });
 
