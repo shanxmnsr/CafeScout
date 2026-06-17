@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    // Get query from frontend
     const { query } = await req.json();
 
     if (!query) {
@@ -12,23 +11,29 @@ export async function POST(req: Request) {
       );
     }
 
-    // Call Overpass API from SERVER (no CORS issue here)
     const response = await fetch("https://overpass-api.de/api/interpreter", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: query,
+      body: new URLSearchParams({
+        data: query,
+      }),
     });
+
+    const text = await response.text();
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: "Overpass API failed", status: response.status },
+        {
+          error: "Overpass API failed",
+          details: text,
+        },
         { status: response.status }
       );
     }
 
-    const data = await response.json();
+    const data = JSON.parse(text);
 
     return NextResponse.json(data);
   } catch (error: any) {
