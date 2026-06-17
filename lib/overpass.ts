@@ -12,15 +12,15 @@ export async function POST(req: Request) {
     }
 
     const response = await fetch(
-      "https://overpass-api.de/api/interpreter",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "text/plain",
-        },
-        body: query,
-      }
-    );
+  "https://overpass-api.de/api/interpreter",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: `data=${encodeURIComponent(query)}`,
+  }
+);
 
     const text = await response.text();
 
