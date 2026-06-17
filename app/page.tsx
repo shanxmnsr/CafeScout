@@ -14,7 +14,7 @@ export default function Home() {
     null,
   );
 
-  /* GET LOCATION */
+  
   useEffect(() => {
     if (!navigator.geolocation) {
       setUserLocation([28.6139, 77.2090]);
