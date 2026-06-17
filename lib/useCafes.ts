@@ -13,11 +13,7 @@ interface UseCafesParams {
 
 let lastGoodCafes: Cafe[] = [];
 
-export function useCafes({
-  lat,
-  lon,
-  radius = 10000,
-}: UseCafesParams) {
+export function useCafes({ lat, lon, radius = 10000 }: UseCafesParams) {
   const [cafes, setCafes] = useState<Cafe[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,8 +21,6 @@ export function useCafes({
   const requestId = useRef(0);
 
   useEffect(() => {
-    if (lat == null || lon == null) return;
-
     const currentRequest = ++requestId.current;
 
     const loadCafes = async () => {
@@ -34,8 +28,13 @@ export function useCafes({
       setError(null);
 
       try {
-        const data = await fetchNearbyCafes(lat, lon, radius);
+        // ✅ FIX: always fallback to safe coordinates
+        const safeLat = lat ?? 28.6139; // Delhi fallback
+        const safeLon = lon ?? 77.2090;
 
+        const data = await fetchNearbyCafes(safeLat, safeLon, radius);
+
+        // ignore stale requests
         if (currentRequest !== requestId.current) return;
 
         if (data?.length > 0) {
@@ -51,7 +50,7 @@ export function useCafes({
           );
         }
       } catch (err) {
-        console.error(err);
+        console.error("Cafe fetch error:", err);
 
         setCafes(lastGoodCafes);
 
